@@ -240,6 +240,36 @@ curl -H "X-API-Key: dev-demo-key-001" \
   http://localhost:3000/api/dev/rates
 ```
 
+### Dolphin (Client HTTP Graphique)
+Dolphin est un client HTTP moderne et intuitif pour tester les APIs.
+
+**Installation** : https://www.dolphin.rest/
+
+**Requête publique** :
+```
+GET http://localhost:3000/api/taux/latest
+```
+
+**Requête avec API Key** :
+```
+GET http://localhost:3000/api/dev/rates
+
+Headers:
+X-API-Key: dev-demo-key-001
+```
+
+**Dans Dolphin** :
+1. Créer une nouvelle requête
+2. Sélectionner GET
+3. Entrer l'URL : `http://localhost:3000/api/taux/latest`
+4. Cliquer "Send"
+5. Voir la réponse JSON formatée en temps réel
+
+Pour les requêtes avec authentification :
+1. Aller dans l'onglet "Headers"
+2. Ajouter : `X-API-Key: dev-demo-key-001`
+3. Envoyer la requête
+
 ---
 
 ## 🛡️ Sécurité
