@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taux HTG/USD - API Documentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #111111;
+      --bg-tertiary: #1a1a1a;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0a0;
+      --text-tertiary: #555555;
+      --accent: #ff3d00;
+      --accent-secondary: #00e676;
+      --accent-blue: #2196f3;
+      --border: #222222;
+      --warning: #ffc107;
+    }
+    
+    html {
+      scroll-behavior: smooth;
+    }
+    
+    body {
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0;
+    }
+    
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(10, 10, 10, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      padding: 1rem 2rem;
+    }
+    
+    .nav-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .nav-logo {
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    
+    .nav-logo span {
+      color: var(--accent-secondary);
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+    }
+    
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: color 0.3s;
+    }
+    
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+    
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 8rem 4rem 4rem;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        linear-gradient(90deg, var(--border) 1px, transparent 1px),
+        linear-gradient(var(--border) 1px, transparent 1px);
+      background-size: 100px 100px;
+      opacity: 0.3;
+      pointer-events: none;
+    }
+    
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    
+    .hero-label {
+      font-size: 0.875rem;
+      color: var(--text-tertiary);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    
+    .hero-title {
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+      line-height: 1.1;
+    }
+    
+    .hero-subtitle {
+      font-size: 1.125rem;
+      color: var(--text-secondary);
+      margin-bottom: 3rem;
+    }
+    
+    .rate-display {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+    
+    .rate-box {
+      padding: 3rem;
+      border-right: 1px solid var(--border);
+    }
+    
+    .rate-box:last-child {
+      border-right: none;
+    }
+    
+    .rate-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 1rem;
+    }
+    
+    .rate-value {
+      font-size: clamp(3rem, 8vw, 6rem);
+      font-weight: 700;
+      line-height: 1;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .rate-buy { color: var(--accent-secondary); }
+    .rate-sell { color: var(--accent); }
+    
+    .rate-currency {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+      letter-spacing: 0.1em;
+    }
+    
+    .date-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      color: var(--text-tertiary);
+      margin-bottom: 2rem;
+    }
+    
+    .market-tabs {
+      display: flex;
+      gap: 0;
+    }
+    
+    .market-tab {
+      padding: 1rem 2rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .market-tab:first-child {
+      border-right: none;
+    }
+    
+    .market-tab.active {
+      background: var(--text-primary);
+      color: var(--bg-primary);
+    }
+    
+    /* Sections */
+    section {
+      padding: 6rem 4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .section-header {
+      max-width: 1200px;
+      margin: 0 auto 4rem;
+    }
+    
+    .section-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--accent-blue);
+      margin-bottom: 1rem;
+    }
+    
+    .section-title {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 1rem;
+    }
+    
+    .section-desc {
+      font-size: 1.125rem;
+      color: var(--text-secondary);
+      max-width: 800px;
+    }
+    
+    /* Documentation Section */
+    .docs-content {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .doc-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      padding: 2.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .doc-card h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .doc-card h3 .icon {
+      font-size: 1.5rem;
+    }
+    
+    .doc-card p {
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+      line-height: 1.8;
+    }
+    
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+    }
+    
+    .info-table th,
+    .info-table td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    
+    .info-table th {
+      color: var(--text-tertiary);
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+    }
+    
+    .info-table td {
+      color: var(--text-secondary);
+    }
+    
+    .info-table code {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-tertiary);
+      padding: 0.25rem 0.5rem;
+      font-size: 0.85rem;
+      color: var(--accent-blue);
+    }
+    
+    .highlight-box {
+      background: var(--bg-tertiary);
+      border-left: 3px solid var(--accent-blue);
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+    }
+    
+    .highlight-box.warning {
+      border-left-color: var(--warning);
+    }
+    
+    .highlight-box.success {
+      border-left-color: var(--accent-secondary);
+    }
+    
+    .highlight-box h4 {
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.75rem;
+      color: var(--text-primary);
+    }
+    
+    .highlight-box p {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+    
+    /* Code Examples */
+    .code-section {
+      background: var(--bg-secondary);
+      padding: 6rem 4rem;
+    }
+    
+    .endpoint-list {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .endpoint-item {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+    
+    .endpoint-header-bar {
+      display: flex;
+      align-items: center;
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
+    }
+    
+    .http-method {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      padding: 0.5rem 1rem;
+      background: var(--accent-secondary);
+      color: var(--bg-primary);
+      font-weight: 600;
+      margin-right: 1rem;
+    }
+    
+    .http-method.post {
+      background: var(--accent-blue);
+    }
+    
+    .endpoint-path-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      color: var(--text-primary);
+    }
+    
+    .endpoint-details {
+      padding: 1.5rem;
+    }
+    
+    .endpoint-details p {
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+    }
+    
+    .lang-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 0;
+    }
+    
+    .lang-tab {
+      padding: 0.75rem 1.5rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      color: var(--text-tertiary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.3s;
+    }
+    
+    .lang-tab.active {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+    
+    .code-container {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+    
+    .code-container pre {
+      margin: 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.8;
+      color: var(--text-secondary);
+    }
+    
+    .response-section {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+    
+    .response-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-tertiary);
+      margin-bottom: 1rem;
+    }
+    
+    .json-syntax .key { color: var(--accent); }
+    .json-syntax .string { color: var(--accent-secondary); }
+    .json-syntax .number { color: #ffab40; }
+    .json-syntax .boolean { color: var(--accent-blue); }
+    
+    /* Protection Section */
+    .protection-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .protection-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      padding: 2rem;
+    }
+    
+    .protection-card h4 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+    
+    .protection-card p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+    
+    .protection-metric {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+    
+    .metric-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent-secondary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    
+    /* Footer */
+    footer {
+      padding: 4rem;
+      text-align: center;
+    }
+    
+    .footer-text {
+      font-size: 0.875rem;
+      color: var(--text-tertiary);
+    }
+    
+    .footer-text a {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+    
+    /* Mobile */
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+      }
+      
+      .hero {
+        padding: 6rem 2rem 3rem;
+      }
+      
+      section {
+        padding: 4rem 2rem;
+      }
+      
+      .rate-display {
+        grid-template-columns: 1fr;
+      }
+      
+      .rate-box {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 2rem;
+      }
+      
+      .rate-box:last-child {
+        border-bottom: none;
+      }
+      
+      .market-tabs {
+        flex-direction: column;
+      }
+      
+      .market-tab:first-child {
+        border-right: 1px solid var(--border);
+        border-bottom: none;
+      }
+      
+      .protection-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-content">
+      <div class="nav-logo"><span>BRH</span> Taux HTG/USD</div>
+      <div class="nav-links">
+        <a href="#taux">Taux du Jour</a>
+        <a href="#documentation">Documentation</a>
+        <a href="#api">API Reference</a>
+        <a href="#protection">Protection</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Hero Section with Rates -->
+    <section class="hero" id="taux">
+      <div class="hero-content">
+        <div class="hero-label">Banque de la Republique d'Haiti</div>
+        <h1 class="hero-title">Taux de Change</h1>
+        <p class="hero-subtitle">Gourde Haïtienne (HTG) vs Dollar Américain (USD)</p>
+        
+        <div class="date-display" id="dateDisplay">Chargement...</div>
+        
+        <div class="rate-display">
+          <div class="rate-box">
+            <div class="rate-label">Taux d'Achat</div>
+            <div class="rate-value rate-buy" id="rateBuy">---</div>
+            <div class="rate-currency">HTG / 1 USD</div>
+          </div>
+          <div class="rate-box">
+            <div class="rate-label">Taux de Vente</div>
+            <div class="rate-value rate-sell" id="rateSell">---</div>
+            <div class="rate-currency">HTG / 1 USD</div>
+          </div>
+        </div>
+        
+        <div class="market-tabs">
+          <button class="market-tab active" onclick="switchMarket('bancaire')">Marché Bancaire</button>
+          <button class="market-tab" onclick="switchMarket('informel')">Marché Informel</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Documentation Section -->
+    <section id="documentation">
+      <div class="section-header">
+        <div class="section-label">Documentation</div>
+        <h2 class="section-title">Guide d'Utilisation</h2>
+        <p class="section-desc">Intégrez les taux de change HTG/USD dans vos applications avec notre API sécurisée et optimisée.</p>
+      </div>
+      
+      <div class="docs-content">
+        <div class="doc-card">
+          <h3><i class="fas fa-lock icon"></i> Authentification</h3>
+          <p>L'API publique <code>/api/taux/latest</code> est accessible sans authentification mais avec des limites de requêtes. Pour un usage développeur avancé avec plus de requêtes, utilisez une clé API.</p>
+          
+          <table class="info-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Clé API</th>
+                <th>Limite</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Public</td>
+                <td><em>Aucune</em></td>
+                <td>100 requêtes / 15 min</td>
+              </tr>
+              <tr>
+                <td>Gratuit</td>
+                <td><code>dev-demo-key-001</code></td>
+                <td>1 000 requêtes / jour</td>
+              </tr>
+              <tr>
+                <td>Pro</td>
+                <td><code>dev-pro-key-002</code></td>
+                <td>10 000 requêtes / jour</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="highlight-box">
+            <h4>Header requis (routes protégées)</h4>
+            <p><code>X-API-Key: dev-demo-key-001</code></p>
+          </div>
+        </div>
+        
+        <div class="doc-card">
+          <h3><i class="fas fa-bolt icon"></i> Rate Limiting</h3>
+          <p>Pour protéger notre infrastructure et celle de la BRH, des limites sont appliquées. Les headers de réponse incluent vos quotas restants.</p>
+          
+          <table class="info-table">
+            <thead>
+              <tr>
+                <th>Header</th>
+                <th>Description</th>
+                <th>Exemple</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>X-RateLimit-Limit</code></td>
+                <td>Limite quotidienne</td>
+                <td>1000</td>
+              </tr>
+              <tr>
+                <td><code>X-RateLimit-Remaining</code></td>
+                <td>Requêtes restantes</td>
+                <td>999</td>
+              </tr>
+              <tr>
+                <td><code>X-RateLimit-Reset</code></td>
+                <td>Date de reset</td>
+                <td>2026-03-28T23:59:59Z</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="highlight-box warning">
+            <h4><i class="fas fa-triangle-exclamation"></i> Dépassement de quota</h4>
+            <p>HTTP 429 - Attendez le reset quotidien ou passez à un tier supérieur.</p>
+          </div>
+        </div>
+        
+        <div class="doc-card">
+          <h3><i class="fas fa-table icon"></i> Endpoints Disponibles</h3>
+          
+          <table class="info-table">
+            <thead>
+              <tr>
+                <th>Méthode</th>
+                <th>Endpoint</th>
+                <th>Auth</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>GET</code></td>
+                <td><code>/api/taux/latest</code></td>
+                <td>Non</td>
+                <td>Taux marché bancaire (rate limited)</td>
+              </tr>
+              <tr>
+                <td><code>GET</code></td>
+                <td><code>/api/taux/informel</code></td>
+                <td>Non</td>
+                <td>Taux marché informel (rate limited)</td>
+              </tr>
+              <tr>
+                <td><code>GET</code></td>
+                <td><code>/api/health</code></td>
+                <td>Non</td>
+                <td>État du service et du cache</td>
+              </tr>
+              <tr>
+                <td><code>GET</code></td>
+                <td><code>/api/dev/rates</code></td>
+                <td>Clé API</td>
+                <td>Taux avec métadonnées complètes</td>
+              </tr>
+              <tr>
+                <td><code>POST</code></td>
+                <td><code>/api/dev/refresh</code></td>
+                <td>Clé Pro</td>
+                <td>Forcer le rafraîchissement BRH</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- API Code Examples -->
+    <section class="code-section" id="api">
+      <div class="section-header">
+        <div class="section-label">API Reference</div>
+        <h2 class="section-title">Exemples de Code</h2>
+        <p class="section-desc">Implémentez l'API dans votre stack technique préférée.</p>
+      </div>
+      
+      <div class="endpoint-list">
+        <!-- Endpoint 1: Public -->
+        <div class="endpoint-item">
+          <div class="endpoint-header-bar">
+            <span class="http-method">GET</span>
+            <code class="endpoint-path-code">/api/taux/latest</code>
+          </div>
+          <div class="endpoint-details">
+            <p>Taux du marché bancaire. Les données sont servies depuis le cache local (30 min TTL) pour protéger le serveur BRH.</p>
+            
+            <div class="lang-tabs">
+              <button class="lang-tab active" onclick="switchCode('latest', 'js')">JavaScript</button>
+              <button class="lang-tab" onclick="switchCode('latest', 'python')">Python</button>
+              <button class="lang-tab" onclick="switchCode('latest', 'php')">PHP</button>
+              <button class="lang-tab" onclick="switchCode('latest', 'curl')">cURL</button>
+            </div>
+            <div class="code-container">
+              <pre id="code-latest-js">// JavaScript - Fetch API
+const response = await fetch('/api/taux/latest');
+const data = await response.json();
+
+console.log('Achat:', data.taux_achat);
+console.log('Vente:', data.taux_vente);
+console.log('Source:', data.source);</pre>
+              <pre id="code-latest-python" style="display:none;"># Python - requests
+import requests
+
+response = requests.get('/api/taux/latest')
+data = response.json()
+
+print(f"Achat: {data['taux_achat']}")
+print(f"Vente: {data['taux_vente']}")
+print(f"Date: {data['date_mise_a_jour']}")</pre>
+              <pre id="code-latest-php" style="display:none;">// PHP - cURL
+$ch = curl_init('/api/taux/latest');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+$data = json_decode($response, true);
+
+echo "Achat: " . $data['taux_achat'];
+echo "Vente: " . $data['taux_vente'];</pre>
+              <pre id="code-latest-curl" style="display:none;"># cURL
+curl -X GET http://localhost:3000/api/taux/latest
+
+# Avec jq pour formater
+curl -s http://localhost:3000/api/taux/latest | jq '.'</pre>
+            </div>
+            
+            <div class="response-section">
+              <div class="response-title">Réponse JSON</div>
+              <div class="code-container">
+                <pre class="json-syntax">{
+  <span class="key">"devise_source"</span>: <span class="string">"USD"</span>,
+  <span class="key">"devise_cible"</span>: <span class="string">"HTG"</span>,
+  <span class="key">"taux_achat"</span>: <span class="number">130.64</span>,
+  <span class="key">"taux_vente"</span>: <span class="number">131.53</span>,
+  <span class="key">"marche_informel_achat"</span>: <span class="number">131.00</span>,
+  <span class="key">"marche_informel_vente"</span>: <span class="number">136.00</span>,
+  <span class="key">"date_mise_a_jour"</span>: <span class="string">"2026-03-27T10:00:00Z"</span>,
+  <span class="key">"source"</span>: <span class="string">"BRH - Banque de la Republique d'Haiti"</span>
+}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Endpoint 2: With API Key -->
+        <div class="endpoint-item">
+          <div class="endpoint-header-bar">
+            <span class="http-method">GET</span>
+            <code class="endpoint-path-code">/api/dev/rates</code>
+          </div>
+          <div class="endpoint-details">
+            <p>Route développeur avec métadonnées complètes. Nécessite une clé API via header <code>X-API-Key</code>.</p>
+            
+            <div class="lang-tabs">
+              <button class="lang-tab active" onclick="switchCode('dev', 'js')">JavaScript</button>
+              <button class="lang-tab" onclick="switchCode('dev', 'python')">Python</button>
+              <button class="lang-tab" onclick="switchCode('dev', 'curl')">cURL</button>
+            </div>
+            <div class="code-container">
+              <pre id="code-dev-js">// JavaScript avec API Key
+const response = await fetch('/api/dev/rates', {
+  headers: {
+    'X-API-Key': 'dev-demo-key-001'
+  }
+});
+
+const data = await response.json();
+console.log('Tier:', data._meta.tier);
+console.log('Requêtes:', data._meta.requestNumber);
+
+// Lire les headers de quota
+const remaining = response.headers.get('X-RateLimit-Remaining');
+console.log('Quota restant:', remaining);</pre>
+              <pre id="code-dev-python" style="display:none;"># Python avec API Key
+import requests
+
+headers = {'X-API-Key': 'dev-demo-key-001'}
+response = requests.get('/api/dev/rates', headers=headers)
+data = response.json()
+
+print(f"Tier: {data['_meta']['tier']}")
+print(f"Quota restant: {response.headers['X-RateLimit-Remaining']}")</pre>
+              <pre id="code-dev-curl" style="display:none;"># cURL avec API Key
+curl -H "X-API-Key: dev-demo-key-001" \
+     http://localhost:3000/api/dev/rates
+
+# Afficher tous les headers
+curl -i -H "X-API-Key: dev-demo-key-001" \
+     http://localhost:3000/api/dev/rates</pre>
+            </div>
+            
+            <div class="response-section">
+              <div class="response-title">Réponse avec métadonnées</div>
+              <div class="code-container">
+                <pre class="json-syntax">{
+  <span class="key">"devise_source"</span>: <span class="string">"USD"</span>,
+  <span class="key">"taux_achat"</span>: <span class="number">130.64</span>,
+  <span class="key">"taux_vente"</span>: <span class="number">131.53</span>,
+  <span class="key">"_meta"</span>: {
+    <span class="key">"tier"</span>: <span class="string">"free"</span>,
+    <span class="key">"requestNumber"</span>: <span class="number">42</span>,
+    <span class="key">"dailyLimit"</span>: <span class="number">1000</span>,
+    <span class="key">"cached"</span>: <span class="boolean">true</span>
+  }
+}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Endpoint 3: Health -->
+        <div class="endpoint-item">
+          <div class="endpoint-header-bar">
+            <span class="http-method">GET</span>
+            <code class="endpoint-path-code">/api/health</code>
+          </div>
+          <div class="endpoint-details">
+            <p>Vérifie l'état du service et l'âge du cache.</p>
+            <div class="code-container">
+              <pre>curl http://localhost:3000/api/health</pre>
+            </div>
+            <div class="response-section">
+              <div class="response-title">Réponse</div>
+              <div class="code-container">
+                <pre class="json-syntax">{
+  <span class="key">"status"</span>: <span class="string">"OK"</span>,
+  <span class="key">"cacheAgeMinutes"</span>: <span class="number">12</span>,
+  <span class="key">"lastFetch"</span>: <span class="string">"2026-03-28T03:26:31.676Z"</span>
+}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Protection Section (Partie 3) -->
+    <section id="protection">
+      <div class="section-header">
+        <div class="section-label">Architecture & Sécurité</div>
+        <h2 class="section-title">Protection de la Source & de l'API</h2>
+        <p class="section-desc">Notre architecture garantit la disponibilité du service tout en protégeant le serveur de la BRH contre les surcharges.</p>
+      </div>
+      
+      <div class="protection-grid">
+        <div class="protection-card">
+          <h4><i class="fas fa-lock"></i> Cache TTL (Time To Live)</h4>
+          <p>Les données BRH sont mises en cache pendant 30 minutes. Quelle que soit la charge utilisateur (10 000 req/min), nous ne faisons qu'1 requête BRH toutes les 30 minutes.</p>
+          <div class="protection-metric">
+            <div class="metric-value">30 min</div>
+            <div class="metric-label">Durée de validité<br>du cache</div>
+          </div>
+        </div>
+        
+        <div class="protection-card">
+          <h4><i class="fas fa-lock"></i> Mutex (Verrou)</h4>
+          <p>Même avec 10 000 utilisateurs simultanés, une seule requête vers BRH est autorisée à la fois. Les autres attendent le résultat en cache.</p>
+          <div class="protection-metric">
+            <div class="metric-value">1</div>
+            <div class="metric-label">Requête BRH<br>simultanée max</div>
+          </div>
+        </div>
+        
+        <div class="protection-card">
+          <h4><i class="fas fa-clock"></i> Rafraîchissement Auto</h4>
+          <p>Cron job toutes les 30 minutes pour rafraîchir les données. Aucun scraping n'a lieu lors des requêtes utilisateur.</p>
+          <div class="protection-metric">
+            <div class="metric-value">48/jour</div>
+            <div class="metric-label">Requêtes BRH<br>maximales</div>
+          </div>
+        </div>
+        
+        <div class="protection-card">
+          <h4><i class="fas fa-shield-halved"></i> Grace Period</h4>
+          <p>Si BRH est inaccessible, nous servons les données "stale" pendant 60 minutes supplémentaires pour garantir la continuité de service.</p>
+          <div class="protection-metric">
+            <div class="metric-value">60 min</div>
+            <div class="metric-label">Données périmées<br>acceptées</div>
+          </div>
+        </div>
+        
+        <div class="protection-card">
+          <h4><i class="fas fa-chart-line"></i> Rate Limiting IP</h4>
+          <p>Limitation à 100 requêtes par IP sur 15 minutes pour les routes publiques. Protection contre le spam et les attaques DDoS.</p>
+          <div class="protection-metric">
+            <div class="metric-value">100</div>
+            <div class="metric-label">Requêtes / 15 min<br>par IP</div>
+          </div>
+        </div>
+        
+        <div class="protection-card">
+          <h4><i class="fas fa-key"></i> API Key & Quotas</h4>
+          <p>Authentification par clé API avec quotas journaliers trackés. Reset automatique à minuit UTC.</p>
+          <div class="protection-metric">
+            <div class="metric-value">1K-10K</div>
+            <div class="metric-label">Requêtes / jour<br>selon le tier</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="docs-content" style="margin-top: 4rem;">
+        <div class="highlight-box success">
+          <h4><i class="fas fa-check-circle"></i> Impact de la protection</h4>
+          <p>Sans cache : 10 000 développeurs × 1 req/min = <strong>600 000 requêtes BRH/heure</strong> (DDoS involontaire)<br>
+          Avec cache : <strong>2 requêtes BRH/heure</strong> (réduction de 99.9997%)</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p class="footer-text">
+        Données fournies par la <a href="https://www.brh.ht" target="_blank">Banque de la République d'Haïti</a> • 
+        API développée pour la communauté
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    let currentMarket = 'bancaire';
+    let rateData = null;
+    
+    async function fetchRate() {
+      try {
+        const response = await fetch('/api/taux/latest');
+        rateData = await response.json();
+        updateDisplay();
+      } catch (error) {
+        console.error('Erreur:', error);
+        document.getElementById('dateDisplay').textContent = 'Erreur de connexion';
+      }
+    }
+    
+    function updateDisplay() {
+      if (!rateData) return;
+      
+      const date = new Date(rateData.date_mise_a_jour);
+      const dateStr = date.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      document.getElementById('dateDisplay').textContent = dateStr;
+      
+      if (currentMarket === 'bancaire') {
+        document.getElementById('rateBuy').textContent = rateData.taux_achat.toFixed(2);
+        document.getElementById('rateSell').textContent = rateData.taux_vente.toFixed(2);
+      } else {
+        document.getElementById('rateBuy').textContent = rateData.marche_informel_achat.toFixed(2);
+        document.getElementById('rateSell').textContent = rateData.marche_informel_vente.toFixed(2);
+      }
+    }
+    
+    function switchMarket(market) {
+      currentMarket = market;
+      document.querySelectorAll('.market-tab').forEach(tab => {
+        tab.classList.toggle('active', 
+          (market === 'bancaire' && tab.textContent.includes('Bancaire')) ||
+          (market === 'informel' && tab.textContent.includes('Informel'))
+        );
+      });
+      updateDisplay();
+    }
+    
+    function switchCode(endpoint, lang) {
+      const tabs = document.querySelectorAll(`[onclick^="switchCode('${endpoint}'"]`);
+      tabs.forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.getAttribute('onclick').includes(`'${lang}'`)) {
+          tab.classList.add('active');
+        }
+      });
+      
+      const codeId = `code-${endpoint}-${lang}`;
+      const allCodes = document.querySelectorAll(`[id^="code-${endpoint}-"]`);
+      allCodes.forEach(code => {
+        code.style.display = code.id === codeId ? 'block' : 'none';
+      });
+    }
+    
+    fetchRate();
+    setInterval(fetchRate, 60000);
+  </script>
+</body>
+</html>
