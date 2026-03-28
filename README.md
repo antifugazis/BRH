@@ -78,6 +78,7 @@ Développer une plateforme complète (Backend + Frontend) qui récupère, stocke
 
 ## 📋 Architecture
 
+### Arborescence du projet
 ```
 /Users/jyvor/Documents/Projects/Api/
 ├── server.js              # Backend Express avec protections
@@ -85,6 +86,174 @@ Développer une plateforme complète (Backend + Frontend) qui récupère, stocke
 ├── public/
 │   └── index.html         # Frontend Monolith Style
 └── README.md             # Documentation
+```
+
+### Wireframes - Flux de données
+
+#### 1. Architecture globale du système
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        SYSTÈME TAUX HTG/USD                         │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌──────────────┐         ┌──────────────┐         ┌──────────────┐
+│   FRONTEND   │         │   BACKEND    │         │  SOURCE BRH  │
+│  (Browser)   │◄───────►│  (Express)   │◄───────►│ (Scraping)   │
+│              │         │              │         │              │
+│ - Affichage  │         │ - API REST   │         │ - Taux du    │
+│ - Requêtes   │         │ - Cache TTL  │         │   jour       │
+│ - Navigation │         │ - Rate Limit │         │ - Marché     │
+└──────────────┘         └──────────────┘         └──────────────┘
+       ▲                         ▲                        ▲
+       │                         │                        │
+   HTTP GET              Cron Job (30min)         Scraping axios
+   /api/taux/latest      Mutex Lock               cheerio parse
+```
+
+#### 2. Flux de requête avec protection (Rate Limiting)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    REQUÊTE UTILISATEUR                          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │  Récupérer IP    │
+                    │  de la requête   │
+                    └──────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │ Rate Limiter     │
+                    │ (100 req/15min)  │
+                    └──────────────────┘
+                         │         │
+                    ✓ OK │         │ ✗ BLOQUÉ
+                         ▼         ▼
+                    ┌────────┐  ┌──────────┐
+                    │ Cache  │  │ HTTP 429 │
+                    │ Check  │  │ (Trop de │
+                    └────────┘  │ requêtes)│
+                         │       └──────────┘
+                    ✓ Hit │
+                         ▼
+                    ┌──────────────┐
+                    │ Retourner    │
+                    │ données JSON │
+                    └──────────────┘
+```
+
+#### 3. Cycle de mise en cache (Protection BRH)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│              CRON JOB - Toutes les 30 minutes                    │
+└──────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │  Mutex Lock      │
+                    │  (isFetching)    │
+                    └──────────────────┘
+                         │         │
+                    ✓ OK │         │ ✗ EN COURS
+                         ▼         ▼
+                    ┌────────┐  ┌──────────┐
+                    │ Scrape │  │ Attendre │
+                    │  BRH   │  │ résultat │
+                    └────────┘  └──────────┘
+                         │              │
+                         └──────┬───────┘
+                                ▼
+                    ┌──────────────────┐
+                    │ Mettre en cache  │
+                    │ (30 min TTL)     │
+                    └──────────────────┘
+                                │
+                    ┌───────────┴───────────┐
+                    ▼                       ▼
+            ✓ Succès                  ✗ Erreur
+            Données OK            Grace Period
+            (30 min)              (60 min stale)
+```
+
+#### 4. Architecture API Key & Quotas
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│              REQUÊTE AVEC API KEY                                │
+│         GET /api/dev/rates?api_key=dev-demo-key-001             │
+└──────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │ Vérifier clé API │
+                    │ dans API_KEYS{}  │
+                    └──────────────────┘
+                         │         │
+                    ✓ OK │         │ ✗ INVALIDE
+                         ▼         ▼
+                    ┌────────┐  ┌──────────┐
+                    │ Vérif. │  │ HTTP 403 │
+                    │ Quota  │  │ (Clé     │
+                    └────────┘  │ invalide)│
+                         │       └──────────┘
+                    ┌────┴────┐
+                    ▼         ▼
+            ✓ OK        ✗ DÉPASSÉ
+            Incrémenter HTTP 429
+            compteur    (Quota)
+                    │
+                    ▼
+            ┌──────────────────┐
+            │ Retourner JSON   │
+            │ + Headers quota  │
+            │ X-RateLimit-*    │
+            └──────────────────┘
+```
+
+#### 5. Comparaison : Sans cache vs Avec cache
+
+```
+SANS CACHE (❌ DDoS involontaire)
+┌─────────────┐
+│ 10 000 devs │
+│ 1 req/min   │
+└─────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ 10 000 requêtes/min  │
+│ vers BRH             │
+└──────────────────────┘
+       │
+       ▼
+    ❌ CRASH BRH
+
+
+AVEC CACHE (✓ Protégé)
+┌─────────────┐
+│ 10 000 devs │
+│ 1 req/min   │
+└─────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ Cache TTL 30 min     │
+│ Mutex Lock           │
+│ Cron Job             │
+└──────────────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│ 2 requêtes BRH/heure │
+│ (48/jour)            │
+└──────────────────────┘
+       │
+       ▼
+    ✓ SÛR & RAPIDE
 ```
 
 ---
@@ -239,36 +408,6 @@ curl http://localhost:3000/api/taux/latest
 curl -H "X-API-Key: dev-demo-key-001" \
   http://localhost:3000/api/dev/rates
 ```
-
-### Dolphin (Client HTTP Graphique)
-Dolphin est un client HTTP moderne et intuitif pour tester les APIs.
-
-**Installation** : https://www.dolphin.rest/
-
-**Requête publique** :
-```
-GET http://localhost:3000/api/taux/latest
-```
-
-**Requête avec API Key** :
-```
-GET http://localhost:3000/api/dev/rates
-
-Headers:
-X-API-Key: dev-demo-key-001
-```
-
-**Dans Dolphin** :
-1. Créer une nouvelle requête
-2. Sélectionner GET
-3. Entrer l'URL : `http://localhost:3000/api/taux/latest`
-4. Cliquer "Send"
-5. Voir la réponse JSON formatée en temps réel
-
-Pour les requêtes avec authentification :
-1. Aller dans l'onglet "Headers"
-2. Ajouter : `X-API-Key: dev-demo-key-001`
-3. Envoyer la requête
 
 ---
 
