@@ -80,7 +80,7 @@ Développer une plateforme complète (Backend + Frontend) qui récupère, stocke
 
 ### Arborescence du projet
 ```
-/Users/jyvor/Documents/Projects/Api/
+./
 ├── server.js              # Backend Express avec protections
 ├── package.json           # Dépendances
 ├── public/
