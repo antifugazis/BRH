@@ -4,6 +4,78 @@ Plateforme complète (Backend + Frontend) pour récupérer, stocker et mettre à
 
 ---
 
+## PARTIE 1 : Mini-Cours - Comprendre les APIs
+
+### 1. Qu'est-ce qu'une API ?
+
+Une **API (Application Programming Interface)** est un ensemble de règles et de protocoles qui permet à différentes applications logicielles de communiquer entre elles.
+
+**L'analogie du restaurant** :
+Imaginez que vous êtes au restaurant :
+- **Vous** = le client/l'application frontend (consultez le menu)
+- **La cuisine** = le serveur/la base de données (prépare la nourriture)
+- **Le serveur** = l'API (prend votre commande, la transmet au système, vous ramène la réponse)
+
+L'API est l'intermédiaire qui permet la communication entre le client et le système backend.
+
+### 2. Les différents types d'API Web
+
+Il existe plusieurs architectures et protocoles pour créer des APIs sur le web :
+
+| Type | Description | Cas d'usage |
+|------|-------------|-----------|
+| **SOAP** | Protocole strict basé sur XML | Anciens systèmes d'entreprise/bancaires (haute sécurité) |
+| **GraphQL** | Langage de requête flexible (Facebook) | Client demande exactement les données nécessaires |
+| **REST** | Architecture populaire utilisant HTTP (GET, POST, PUT, DELETE) | La plupart des APIs modernes, format JSON |
+
+### 3. L'API RESTful (celle du projet)
+
+Une **API RESTful** est :
+- **Stateless** (sans état) : Chaque requête contient toutes les informations nécessaires pour être comprise
+- **Basée sur HTTP** : Utilise les méthodes GET, POST, PUT, DELETE
+- **Expose des Endpoints** : Points de terminaison comme `/api/v1/taux-change`
+- **Retourne JSON** : Format standard et lisible
+
+**Exemple d'endpoint RESTful** :
+```
+GET /api/taux/latest
+```
+Retourne :
+```json
+{
+  "devise_source": "USD",
+  "devise_cible": "HTG",
+  "taux_achat": 130.64,
+  "taux_vente": 131.53,
+  "date_mise_a_jour": "2026-03-28T10:00:00Z"
+}
+```
+
+---
+
+## PARTIE 2 : Énoncé du Projet
+
+### Contexte
+Les entreprises, développeurs et citoyens ont constamment besoin du taux de référence journalier de la gourde haïtienne (HTG) vs dollar américain (USD), publié par la BRH (Banque de la République d'Haïti).
+
+### Objectif
+Développer une plateforme complète (Backend + Frontend) qui récupère, stocke et met à disposition le taux de change du jour.
+
+### Fonctionnalités livrées
+
+**1. Le Moteur de l'API (Backend)** ✓
+- Scraping automatique du site BRH (https://www.brh.ht/taux-du-jour/)
+- Endpoint API public `/api/taux/latest` retournant JSON formaté
+- Format JSON exact demandé avec devise_source, devise_cible, taux_achat, taux_vente, date_mise_a_jour
+
+**2. L'Interface Utilisateur (Frontend)** ✓
+- Page web user-friendly affichant le taux du jour en grand format
+- Section "Espace Développeurs" avec documentation complète
+- Exemples de code JavaScript, Python, PHP, cURL
+- Navigation intuitive vers sections clés
+
+---
+
 ## 📋 Architecture
 
 ```
