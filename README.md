@@ -88,172 +88,158 @@ Développer une plateforme complète (Backend + Frontend) qui récupère, stocke
 └── README.md             # Documentation
 ```
 
-### Wireframes - Flux de données
+### Dolphin Wireframes - Architecture System
 
-#### 1. Architecture globale du système
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        SYSTÈME TAUX HTG/USD                         │
-└─────────────────────────────────────────────────────────────────────┘
-
-┌──────────────┐         ┌──────────────┐         ┌──────────────┐
-│   FRONTEND   │         │   BACKEND    │         │  SOURCE BRH  │
-│  (Browser)   │◄───────►│  (Express)   │◄───────►│ (Scraping)   │
-│              │         │              │         │              │
-│ - Affichage  │         │ - API REST   │         │ - Taux du    │
-│ - Requêtes   │         │ - Cache TTL  │         │   jour       │
-│ - Navigation │         │ - Rate Limit │         │ - Marché     │
-└──────────────┘         └──────────────┘         └──────────────┘
-       ▲                         ▲                        ▲
-       │                         │                        │
-   HTTP GET              Cron Job (30min)         Scraping axios
-   /api/taux/latest      Mutex Lock               cheerio parse
-```
-
-#### 2. Flux de requête avec protection (Rate Limiting)
+#### 1. System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    REQUÊTE UTILISATEUR                          │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                    ┌──────────────────┐
-                    │  Récupérer IP    │
-                    │  de la requête   │
-                    └──────────────────┘
-                              │
-                              ▼
-                    ┌──────────────────┐
-                    │ Rate Limiter     │
-                    │ (100 req/15min)  │
-                    └──────────────────┘
-                         │         │
-                    ✓ OK │         │ ✗ BLOQUÉ
-                         ▼         ▼
-                    ┌────────┐  ┌──────────┐
-                    │ Cache  │  │ HTTP 429 │
-                    │ Check  │  │ (Trop de │
-                    └────────┘  │ requêtes)│
-                         │       └──────────┘
-                    ✓ Hit │
-                         ▼
-                    ┌──────────────┐
-                    │ Retourner    │
-                    │ données JSON │
-                    └──────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      HTG/USD EXCHANGE RATE API                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+   ┌──────────────┐              ┌──────────────┐              ┌──────────┐
+   │   CLIENT     │   HTTP GET   │   SERVER     │   axios      │   BRH    │
+   │  (Browser)   │◄────────────►│  (Express)   │◄────────────►│ (Source) │
+   └──────────────┘              └──────────────┘              └──────────┘
+                                        │
+                              ┌─────────┴─────────┐
+                              │    COMPONENTS     │
+                              ├───────────────────┤
+                              │ • Cache (30m TTL) │
+                              │ • Rate Limiter    │
+                              │ • Cron Job        │
+                              │ • Mutex Lock      │
+                              └───────────────────┘
 ```
 
-#### 3. Cycle de mise en cache (Protection BRH)
+#### 2. Request Flow with Rate Limiting
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│              CRON JOB - Toutes les 30 minutes                    │
-└──────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                    ┌──────────────────┐
-                    │  Mutex Lock      │
-                    │  (isFetching)    │
-                    └──────────────────┘
-                         │         │
-                    ✓ OK │         │ ✗ EN COURS
-                         ▼         ▼
-                    ┌────────┐  ┌──────────┐
-                    │ Scrape │  │ Attendre │
-                    │  BRH   │  │ résultat │
-                    └────────┘  └──────────┘
-                         │              │
-                         └──────┬───────┘
-                                ▼
-                    ┌──────────────────┐
-                    │ Mettre en cache  │
-                    │ (30 min TTL)     │
-                    └──────────────────┘
-                                │
-                    ┌───────────┴───────────┐
-                    ▼                       ▼
-            ✓ Succès                  ✗ Erreur
-            Données OK            Grace Period
-            (30 min)              (60 min stale)
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         INCOMING REQUEST                                │
+└─────────────────────────────────────────────────────────────────────────┘
+
+         │
+         ▼
+   ┌───────────┐
+   │ Extract   │
+   │    IP     │
+   └─────┬─────┘
+         │
+         ▼
+   ┌───────────┐     ┌───────────────┐
+   │  Rate     │────►│   BLOCKED     │
+   │  Limit    │ 429 │   (X-RateLimit)│
+   │  Check    │────►└───────────────┘
+   └─────┬─────┘
+         │ 200 OK
+         ▼
+   ┌───────────┐     ┌───────────────┐
+   │   Cache   │────►│   CACHE HIT   │
+   │   Check   │     │  Return JSON  │
+   └─────┬─────┘     └───────────────┘
+         │ MISS
+         ▼
+   ┌───────────┐
+   │  Scrape   │
+   │   BRH     │
+   └───────────┘
 ```
 
-#### 4. Architecture API Key & Quotas
+#### 3. Data Refresh Cycle (BRH Protection)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│              REQUÊTE AVEC API KEY                                │
-│         GET /api/dev/rates?api_key=dev-demo-key-001             │
-└──────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                    ┌──────────────────┐
-                    │ Vérifier clé API │
-                    │ dans API_KEYS{}  │
-                    └──────────────────┘
-                         │         │
-                    ✓ OK │         │ ✗ INVALIDE
-                         ▼         ▼
-                    ┌────────┐  ┌──────────┐
-                    │ Vérif. │  │ HTTP 403 │
-                    │ Quota  │  │ (Clé     │
-                    └────────┘  │ invalide)│
-                         │       └──────────┘
-                    ┌────┴────┐
-                    ▼         ▼
-            ✓ OK        ✗ DÉPASSÉ
-            Incrémenter HTTP 429
-            compteur    (Quota)
-                    │
-                    ▼
-            ┌──────────────────┐
-            │ Retourner JSON   │
-            │ + Headers quota  │
-            │ X-RateLimit-*    │
-            └──────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      CRON: EVERY 30 MINUTES                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+         │
+         ▼
+   ┌───────────┐     ┌───────────┐
+   │   Mutex   │────►│  BUSY     │
+   │   Lock    │ wait│ (fetching)│
+   └─────┬─────┘     └───────────┘
+         │ FREE
+         ▼
+   ┌───────────┐
+   │  Scrape   │
+   │    BRH    │
+   └─────┬─────┘
+         │
+    ┌────┴────┐
+    │         │
+    ▼         ▼
+┌───────┐ ┌───────┐
+│SUCCESS│ │ ERROR │
+│(cache)│ │(stale)│
+└───────┘ └───────┘
+  30min    60min
 ```
 
-#### 5. Comparaison : Sans cache vs Avec cache
+#### 4. API Key Authentication Flow
 
 ```
-SANS CACHE (❌ DDoS involontaire)
-┌─────────────┐
-│ 10 000 devs │
-│ 1 req/min   │
-└─────────────┘
-       │
-       ▼
-┌──────────────────────┐
-│ 10 000 requêtes/min  │
-│ vers BRH             │
-└──────────────────────┘
-       │
-       ▼
-    ❌ CRASH BRH
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    REQUEST: /api/dev/rates                              │
+│                    Header: X-API-Key: <token>                           │
+└─────────────────────────────────────────────────────────────────────────┘
 
+         │
+         ▼
+   ┌───────────┐
+   │  Validate │
+   │  API Key  │
+   └─────┬─────┘
+         │
+    ┌────┴────┐
+    │         │
+    ▼         ▼
+┌───────┐ ┌───────┐
+│ VALID │ │INVALID│
+│       │ │  403  │
+└───┬───┘ └───────┘
+    │
+    ▼
+┌───────────┐
+│  Check    │
+│   Quota   │
+└─────┬─────┘
+      │
+ ┌────┴────┐
+ │         │
+ ▼         ▼
+┌─────┐ ┌─────┐
+│ OK  │ │429  │
+│+1   │ │Quota│
+└─────┘ └─────┘
+```
 
-AVEC CACHE (✓ Protégé)
-┌─────────────┐
-│ 10 000 devs │
-│ 1 req/min   │
-└─────────────┘
-       │
-       ▼
-┌──────────────────────┐
-│ Cache TTL 30 min     │
-│ Mutex Lock           │
-│ Cron Job             │
-└──────────────────────┘
-       │
-       ▼
-┌──────────────────────┐
-│ 2 requêtes BRH/heure │
-│ (48/jour)            │
-└──────────────────────┘
-       │
-       ▼
-    ✓ SÛR & RAPIDE
+#### 5. Impact Analysis: Protection Comparison
+
+```
+WITHOUT CACHE                     WITH CACHE
+────────────────                  ────────────────
+
+10,000 devs                       10,000 devs
+1 req/min                         1 req/min
+    │                                 │
+    ▼                                 ▼
+┌─────────┐                     ┌─────────────┐
+│ 10,000  │                     │   CACHE     │
+│ req/min │                     │   LAYER     │
+│ to BRH  │                     │ (30m TTL)   │
+└────┬────┘                     └──────┬──────┘
+    │                                   │
+    ▼                                   ▼
+┌─────────┐                     ┌─────────────┐
+│  ❌ DDOS │                     │  2 req/hour │
+│  CRASH  │                     │   to BRH    │
+└─────────┘                     └─────────────┘
+                                      │
+                                      ▼
+                                ┌─────────────┐
+                                │    ✅ OK    │
+                                └─────────────┘
 ```
 
 ---
