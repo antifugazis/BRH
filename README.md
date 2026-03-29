@@ -90,95 +90,95 @@ Développer une plateforme complète (Backend + Frontend) qui récupère, stocke
 
 ### Mermaid Diagrams - System Architecture
 
-#### 1. System Overview
+#### 1. Vue d'ensemble du système
 
 ```mermaid
 flowchart TB
-    subgraph Client["CLIENT"]
-        Browser["Browser\n- Display\n- Requests\n- Navigation"]
+    subgraph Client["CLIENT (Navigateur)"]
+        Browser["Utilisateur\n- Frontend HTML\n- JavaScript"]
     end
 
-    subgraph Server["SERVER (Express)"]
+    subgraph Server["SERVEUR (Express)"]
         API["API REST"]
-        Cache["Cache (30m TTL)"]
-        RateLimit["Rate Limiter"]
-        Cron["Cron Job"]
-        Mutex["Mutex Lock"]
+        Cache["Cache (30 min TTL)"]
+        RateLimit["Limiteur de Requêtes"]
+        Cron["Tâche Cron"]
+        Mutex["Verrou Mutex"]
     end
 
     subgraph Source["SOURCE"]
-        BRH["BRH Website\n- Daily rates\n- Market data"]
+        BRH["Site BRH\n- Taux journaliers\n- Données marché"]
     end
 
     Browser <-->|"HTTP GET\n/api/taux/latest"| API
     API --> Cache
     API --> RateLimit
-    Cron -->|"Every 30min"| Mutex
-    Mutex -->|"Scrape"| BRH
+    Cron -->|"Toutes les 30 min"| Mutex
+    Mutex -->|"Scraper"| BRH
     BRH -->|"axios + cheerio"| Cache
 ```
 
-#### 2. Request Flow with Rate Limiting
+#### 2. Flux de Requêtes avec Limitation de Débit
 
 ```mermaid
 flowchart TD
-    A[Incoming Request] --> B[Extract IP]
-    B --> C{Rate Limit Check}
-    C -->|429| D[Blocked]
-    C -->|200 OK| E{Cache Check}
-    E -->|HIT| F[Return JSON]
-    E -->|MISS| G[Scrape BRH]
+    A[Requête Entrante] --> B[Extraire IP]
+    B --> C{Vérification Limite}
+    C -->|429| D[Bloqué]
+    C -->|200 OK| E{Vérification Cache}
+    E -->|HIT| F[Retourner JSON]
+    E -->|MISS| G[Scraper BRH]
     G --> F
 
     style D fill:#ff6b6b,color:#fff
     style F fill:#51cf66,color:#fff
 ```
 
-#### 3. Data Refresh Cycle (BRH Protection)
+#### 3. Cycle de Rafraîchissement des Données (Protection BRH)
 
 ```mermaid
 flowchart TD
-    A[Cron: Every 30min] --> B{Mutex Lock}
-    B -->|Busy| C[Wait for result]
-    B -->|Free| D[Scrape BRH]
-    D --> E{Result}
-    E -->|Success| F[Cache 30min]
-    E -->|Error| G[Grace Period\n60min stale]
+    A[Cron: Toutes les 30 min] --> B{Verrou Mutex}
+    B -->|Occupé| C[Attendre résultat]
+    B -->|Libre| D[Scraper BRH]
+    D --> E{Résultat}
+    E -->|Succès| F[Cache 30 min]
+    E -->|Erreur| G[Période de Grâce\n60 min périmé]
     C --> F
 
     style F fill:#51cf66,color:#fff
     style G fill:#ffd93d
 ```
 
-#### 4. API Key Authentication Flow
+#### 4. Flux d'Authentification par Clé API
 
 ```mermaid
 flowchart TD
-    A[Request: /api/dev/rates\nHeader: X-API-Key] --> B{Validate API Key}
-    B -->|Invalid| C[HTTP 403]
-    B -->|Valid| D{Check Quota}
-    D -->|OK| E[Increment counter]
-    D -->|Exceeded| F[HTTP 429]
-    E --> G[Return JSON + Headers]
+    A[Requête: /api/dev/rates\nHeader: X-API-Key] --> B{Valider Clé API}
+    B -->|Invalide| C[HTTP 403]
+    B -->|Valide| D{Vérifier Quota}
+    D -->|OK| E[Incrémenter compteur]
+    D -->|Dépassé| F[HTTP 429]
+    E --> G[Retourner JSON + Headers]
 
     style C fill:#ff6b6b,color:#fff
     style F fill:#ff6b6b,color:#fff
     style G fill:#51cf66,color:#fff
 ```
 
-#### 5. Protection Comparison
+#### 5. Comparaison des Protections
 
 ```mermaid
 flowchart LR
-    subgraph Without["WITHOUT CACHE"]
-        A1[10,000 devs] --> B1[10,000 req/min]
-        B1 --> C1[❌ DDOS CRASH]
+    subgraph Without["SANS CACHE"]
+        A1[10 000 devs] --> B1[10 000 req/min]
+        B1 --> C1[❌ CRASH DDOS]
         style C1 fill:#ff6b6b,color:#fff
     end
 
-    subgraph With["WITH CACHE"]
-        A2[10,000 devs] --> B2[Cache Layer\n30m TTL]
-        B2 --> C2[2 req/hour to BRH]
+    subgraph With["AVEC CACHE"]
+        A2[10 000 devs] --> B2[Couche Cache\n30 min TTL]
+        B2 --> C2[2 req/heure vers BRH]
         C2 --> D2[✅ OK]
         style D2 fill:#51cf66,color:#fff
     end
