@@ -88,158 +88,100 @@ Développer une plateforme complète (Backend + Frontend) qui récupère, stocke
 └── README.md             # Documentation
 ```
 
-### Dolphin Wireframes - Architecture System
+### Mermaid Diagrams - System Architecture
 
 #### 1. System Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      HTG/USD EXCHANGE RATE API                          │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Client["CLIENT"]
+        Browser["Browser\n- Display\n- Requests\n- Navigation"]
+    end
 
-   ┌──────────────┐              ┌──────────────┐              ┌──────────┐
-   │   CLIENT     │   HTTP GET   │   SERVER     │   axios      │   BRH    │
-   │  (Browser)   │◄────────────►│  (Express)   │◄────────────►│ (Source) │
-   └──────────────┘              └──────────────┘              └──────────┘
-                                        │
-                              ┌─────────┴─────────┐
-                              │    COMPONENTS     │
-                              ├───────────────────┤
-                              │ • Cache (30m TTL) │
-                              │ • Rate Limiter    │
-                              │ • Cron Job        │
-                              │ • Mutex Lock      │
-                              └───────────────────┘
+    subgraph Server["SERVER (Express)"]
+        API["API REST"]
+        Cache["Cache (30m TTL)"]
+        RateLimit["Rate Limiter"]
+        Cron["Cron Job"]
+        Mutex["Mutex Lock"]
+    end
+
+    subgraph Source["SOURCE"]
+        BRH["BRH Website\n- Daily rates\n- Market data"]
+    end
+
+    Browser <-->|"HTTP GET\n/api/taux/latest"| API
+    API --> Cache
+    API --> RateLimit
+    Cron -->|"Every 30min"| Mutex
+    Mutex -->|"Scrape"| BRH
+    BRH -->|"axios + cheerio"| Cache
 ```
 
 #### 2. Request Flow with Rate Limiting
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         INCOMING REQUEST                                │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[Incoming Request] --> B[Extract IP]
+    B --> C{Rate Limit Check}
+    C -->|429| D[Blocked]
+    C -->|200 OK| E{Cache Check}
+    E -->|HIT| F[Return JSON]
+    E -->|MISS| G[Scrape BRH]
+    G --> F
 
-         │
-         ▼
-   ┌───────────┐
-   │ Extract   │
-   │    IP     │
-   └─────┬─────┘
-         │
-         ▼
-   ┌───────────┐     ┌───────────────┐
-   │  Rate     │────►│   BLOCKED     │
-   │  Limit    │ 429 │   (X-RateLimit)│
-   │  Check    │────►└───────────────┘
-   └─────┬─────┘
-         │ 200 OK
-         ▼
-   ┌───────────┐     ┌───────────────┐
-   │   Cache   │────►│   CACHE HIT   │
-   │   Check   │     │  Return JSON  │
-   └─────┬─────┘     └───────────────┘
-         │ MISS
-         ▼
-   ┌───────────┐
-   │  Scrape   │
-   │   BRH     │
-   └───────────┘
+    style D fill:#ff6b6b,color:#fff
+    style F fill:#51cf66,color:#fff
 ```
 
 #### 3. Data Refresh Cycle (BRH Protection)
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      CRON: EVERY 30 MINUTES                             │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[Cron: Every 30min] --> B{Mutex Lock}
+    B -->|Busy| C[Wait for result]
+    B -->|Free| D[Scrape BRH]
+    D --> E{Result}
+    E -->|Success| F[Cache 30min]
+    E -->|Error| G[Grace Period\n60min stale]
+    C --> F
 
-         │
-         ▼
-   ┌───────────┐     ┌───────────┐
-   │   Mutex   │────►│  BUSY     │
-   │   Lock    │ wait│ (fetching)│
-   └─────┬─────┘     └───────────┘
-         │ FREE
-         ▼
-   ┌───────────┐
-   │  Scrape   │
-   │    BRH    │
-   └─────┬─────┘
-         │
-    ┌────┴────┐
-    │         │
-    ▼         ▼
-┌───────┐ ┌───────┐
-│SUCCESS│ │ ERROR │
-│(cache)│ │(stale)│
-└───────┘ └───────┘
-  30min    60min
+    style F fill:#51cf66,color:#fff
+    style G fill:#ffd93d
 ```
 
 #### 4. API Key Authentication Flow
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    REQUEST: /api/dev/rates                              │
-│                    Header: X-API-Key: <token>                           │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[Request: /api/dev/rates\nHeader: X-API-Key] --> B{Validate API Key}
+    B -->|Invalid| C[HTTP 403]
+    B -->|Valid| D{Check Quota}
+    D -->|OK| E[Increment counter]
+    D -->|Exceeded| F[HTTP 429]
+    E --> G[Return JSON + Headers]
 
-         │
-         ▼
-   ┌───────────┐
-   │  Validate │
-   │  API Key  │
-   └─────┬─────┘
-         │
-    ┌────┴────┐
-    │         │
-    ▼         ▼
-┌───────┐ ┌───────┐
-│ VALID │ │INVALID│
-│       │ │  403  │
-└───┬───┘ └───────┘
-    │
-    ▼
-┌───────────┐
-│  Check    │
-│   Quota   │
-└─────┬─────┘
-      │
- ┌────┴────┐
- │         │
- ▼         ▼
-┌─────┐ ┌─────┐
-│ OK  │ │429  │
-│+1   │ │Quota│
-└─────┘ └─────┘
+    style C fill:#ff6b6b,color:#fff
+    style F fill:#ff6b6b,color:#fff
+    style G fill:#51cf66,color:#fff
 ```
 
-#### 5. Impact Analysis: Protection Comparison
+#### 5. Protection Comparison
 
-```
-WITHOUT CACHE                     WITH CACHE
-────────────────                  ────────────────
+```mermaid
+flowchart LR
+    subgraph Without["WITHOUT CACHE"]
+        A1[10,000 devs] --> B1[10,000 req/min]
+        B1 --> C1[❌ DDOS CRASH]
+        style C1 fill:#ff6b6b,color:#fff
+    end
 
-10,000 devs                       10,000 devs
-1 req/min                         1 req/min
-    │                                 │
-    ▼                                 ▼
-┌─────────┐                     ┌─────────────┐
-│ 10,000  │                     │   CACHE     │
-│ req/min │                     │   LAYER     │
-│ to BRH  │                     │ (30m TTL)   │
-└────┬────┘                     └──────┬──────┘
-    │                                   │
-    ▼                                   ▼
-┌─────────┐                     ┌─────────────┐
-│  ❌ DDOS │                     │  2 req/hour │
-│  CRASH  │                     │   to BRH    │
-└─────────┘                     └─────────────┘
-                                      │
-                                      ▼
-                                ┌─────────────┐
-                                │    ✅ OK    │
-                                └─────────────┘
+    subgraph With["WITH CACHE"]
+        A2[10,000 devs] --> B2[Cache Layer\n30m TTL]
+        B2 --> C2[2 req/hour to BRH]
+        C2 --> D2[✅ OK]
+        style D2 fill:#51cf66,color:#fff
+    end
 ```
 
 ---
