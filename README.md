@@ -470,6 +470,58 @@ if (error) {
 | Avec protection | 2 | Service stable, BRH protégée |
 | **Réduction** | **99.9997%** | **Succès** |
 
+#### Cas Limites et Gestion d'Erreurs
+
+**Cas 1 : BRH est down lors du cron job**
+```
+Cron déclenche scraping → BRH timeout (10s) → Grace period activé
+→ Données stale servies (60min) → Prochain cron dans 30min
+→ Logging de l'erreur pour monitoring
+```
+
+**Cas 2 : Cache vide au démarrage du serveur**
+```
+Démarrage → Aucune donnée en cache → Première requête utilisateur arrive
+→ scrapeExchangeRate() est appelé (initialisation) → Mutex lock
+→ Scraping BRH → Cache rempli → Réponse envoyée
+→ Requêtes suivantes servies depuis cache instantanément
+```
+
+**Cas 3 : Concurrence extrême (10 000 req simultanées)**
+```
+10 000 requêtes arrivent en même milliseconde → Toutes vérifient le cache
+→ Cache expiré (edge case) → Toutes tentent de scraper
+→ Mutex : seule la première passe → 9 999 attendent (polling 500ms)
+→ Scraping réussi → Cache mis à jour → 9 999 reçoivent le cache
+→ Temps d'attente max : ~10 secondes (20 polls × 500ms)
+```
+
+**Cas 4 : Format HTML BRH change**
+```
+BRH modifie son site → Cheerio ne trouve plus les sélecteurs
+→ Parsing retourne null → Valeurs par défaut activées (130.64/131.53)
+→ Logging de l'erreur → Notification admin nécessaire
+→ Service continue avec fallback
+```
+
+#### Décisions d'Architecture Justifiées
+
+**Pourquoi 30 minutes de TTL ?**
+- Les taux de change HTG/USD changent généralement une fois par jour (matin)
+- 30 minutes offre un bon équilibre fraîcheur/performance
+- En dessous : surcharge BRH inutile
+- Au dessus : données potentiellement obsolètes
+
+**Pourquoi Mutex plutôt que Queue ?**
+- Simplicité d'implementation (variable booléenne vs système de queue)
+- Suffisant pour notre cas d'usage (10 000 req max)
+- Pas de dépendance externe (Redis, etc.)
+
+**Pourquoi pas de base de données pour le cache ?**
+- In-memory est 1000× plus rapide (< 1ms vs 10-50ms)
+- Données volatile (taux du jour uniquement)
+- Redémarrage serveur = re-scraping acceptable
+
 ---
 
 ### Q2: Protection de l'API
@@ -636,6 +688,77 @@ app.post('/api/dev/refresh', requireApiKey, (req, res) => {
 | Abus d'API | Oui | Tracké et limité |
 | Visibilité | Aucune | Headers informatifs |
 | Différenciation | Non | Tiers Free/Pro |
+
+#### Scénarios d'Attaque et Défenses
+
+**Attaque 1 : DDoS Basique (1000 req/s depuis une IP)**
+```
+Attaquant envoie 1000 req/s → Rate limiter compte les requêtes
+→ Après 100 requêtes (en ~100ms) : IP bloquée
+→ HTTP 429 avec Retry-After: 900 (15 minutes)
+→ Logging : [RATE LIMIT] IP bloquée: 192.168.1.100
+→ IP bloquée pendant 15 minutes, attaque stoppée
+```
+
+**Attaque 2 : Distributed DDoS (1000 IPs différentes)**
+```
+Attaquant utilise botnet (1000 IPs) → Chaque IP fait 100 req/15min
+→ 1000 × 100 = 100 000 requêtes total
+→ API tient le coup (100K << capacité serveur)
+→ Solution : WAF/CDN Cloudflare en amont (non implémenté ici)
+```
+
+**Attaque 3 : Brute Force API Keys**
+```
+Attaquant teste des clés aléatoires → Middleware vérifie chaque clé
+→ Clé invalide : HTTP 403 immédiat
+→ Logging : [AUTH] Tentative avec clé invalide: abc123...xyz
+→ Pas de rate limiting sur auth (risque DoS par reflection)
+→ Mais clés sont longues (64 chars) = impossibilité statistique
+```
+
+**Attaque 4 : Dépassement de Quota Journalier**
+```
+Dev maladroit fait 10 000 req/jour avec clé Free → Compteur atteint 1000
+→ HTTP 429 avec resetTime: "2026-03-29T00:00:00Z"
+→ Dev doit attendre minuit UTC ou passer Pro
+→ Headers informatifs permettent anticipation
+```
+
+#### Headers de Sécurité et Monitoring
+
+**Headers envoyés sur chaque réponse** :
+```
+X-RateLimit-Limit: 1000           # Limite totale
+X-RateLimit-Remaining: 999      # Restantes
+X-RateLimit-Reset: 2026-03-28T23:59:59Z  # Reset UTC
+X-API-Tier: free                  # Niveau du compte
+```
+
+**Logging sécurité** (visible dans `console.warn`) :
+```
+[RATE LIMIT] IP bloquée: 192.168.1.100 - /api/taux/latest
+[AUTH] Tentative avec clé invalide: dev-fake-key-...
+[AUTH] Quota dépassé pour clé: dev-demo-key-001 (1000/1000)
+```
+
+**Monitoring recommandé** (à implémenter avec Winston ou ELK) :
+- Alertes Slack si > 100 IPs bloquées/heure
+- Dashboard des quotas par clé API
+- Graphique des requêtes/minute
+
+#### Limites et Améliorations Futures
+
+**Ce qui n'est PAS protégé** :
+- Distributed DDoS massif (> 10 000 IPs)
+- Attaques L7 (slowloris, etc.)
+- Fuite de clés API légitimes
+
+**Solutions complémentaires recommandées** :
+- Cloudflare/WAF en amont (protection DDoS layer 3/4)
+- Recaptcha v3 sur routes sensibles
+- Rotation automatique des clés API compromises
+- Circuit breaker si BRH down > 2 heures
 
 ---
 
