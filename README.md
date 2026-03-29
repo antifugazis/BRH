@@ -76,7 +76,54 @@ Développer une plateforme complète (Backend + Frontend) qui récupère, stocke
 
 ---
 
-## 📋 Architecture
+## �️ Technologies Choisies
+
+### Backend : Node.js + Express
+
+| Technologie | Rôle | Justification |
+|-------------|------|---------------|
+| **Node.js** | Runtime JavaScript | Performance I/O non-bloquante, parfait pour APIs REST |
+| **Express** | Framework web | Minimaliste, middleware ecosystem riche, standard industriel |
+| **axios** | Client HTTP | Promises natif, gestion timeouts, meilleur que `fetch` côté serveur |
+| **cheerio** | Parsing HTML | jQuery-like syntax, léger et rapide pour scraping |
+| **node-cron** | Tâches planifiées | Syntaxe cron standard, simple pour rafraîchissements périodiques |
+| **express-rate-limit** | Rate limiting | Middleware officiel Express, sliding window natif |
+| **cors** | Cross-origin | Gestion CORS simplifiée, sécurité configurée |
+
+**Pourquoi pas Python/Django ?**
+- Node.js est plus performant pour les I/O intensives (HTTP requests)
+- Django est overkill pour cette API simple (pas besoin d'ORM complexe)
+- JavaScript unifié frontend/backend
+- `axios` + `cheerio` sont supérieurs aux alternatives Python pour ce cas
+
+**Pourquoi pas PHP ?**
+- Node.js offre meilleure gestion asynchrone (crucial pour le scraping)
+- Ecosystème moderne plus riche pour APIs REST
+
+### Frontend : HTML5 + JavaScript Vanilla
+
+| Technologie | Rôle | Justification |
+|-------------|------|---------------|
+| **HTML5** | Structure sémantique | Aucune dépendance, SEO-friendly, accessible |
+| **JavaScript Vanilla** | Logique client | Aucun framework frontend requis (interface simple) |
+| **CSS3** | Styling | Design responsive sans Tailwind/Bootstrap (overkill) |
+| **Font Awesome** | Icônes | CDN direct, pas de build step nécessaire |
+
+**Pourquoi pas React/Vue/Angular ?**
+- Interface trop simple pour justifier un framework (juste affichage + API call)
+- Pas de state management complexe nécessaire
+- Chargement instantané sans bundle JavaScript lourd
+
+### Déploiement : Vercel (Serverless)
+
+| Technologie | Rôle | Justification |
+|-------------|------|---------------|
+| **Vercel** | Hébergement | Free tier généreux, CDN global, HTTPS auto |
+| **GitHub** | Version control | Intégration Vercel native, historique des déploiements |
+
+---
+
+## �📋 Architecture
 
 ### Arborescence du projet
 ```
